@@ -40,6 +40,12 @@
         display: block;
         min-height: auto;
       }
+      body[data-mobile-view="timeline"] aside {
+        display: none;
+      }
+      body[data-mobile-view="calendar"] main {
+        display: none;
+      }
       aside {
         position: static;
         max-height: none;
@@ -55,7 +61,7 @@
         position: static;
         background: transparent;
       }
-      .mobile-jump {
+      .mobile-view-toggle {
         display: inline-flex;
       }
     }
@@ -86,7 +92,7 @@
       margin-bottom: 0.75rem;
     }
     .year-nav span { font-weight: 600; font-size: 1.1rem; }
-    .mobile-jump {
+    .mobile-view-toggle {
       display: none;
       margin: 0.25rem 0 0.9rem;
       padding: 0.38rem 0.7rem;
@@ -97,7 +103,7 @@
       font-size: 0.84rem;
       cursor: pointer;
     }
-    .mobile-jump:hover { border-color: var(--accent); }
+    .mobile-view-toggle:hover { border-color: var(--accent); }
     .legend {
       display: flex;
       flex-wrap: wrap;
@@ -388,7 +394,7 @@
         <a href="https://www.gov.cn/zhengce/content/202511/content_7047090.htm" target="_blank" rel="noopener">国务院办公厅通知（国办发明电〔2025〕7号）</a>
       </p>
       <div class="year-nav"><span>公元 2026 年</span></div>
-      <button type="button" class="mobile-jump" id="mobileJumpToTimeline">跳到填写时间轴</button>
+      <button type="button" class="mobile-view-toggle" id="mobileBackToTimeline">返回今日时间轴</button>
       <div class="legend">
         <span><i class="dot holiday"></i> 放假日</span>
         <span><i class="dot work"></i> 调休补班</span>
@@ -413,6 +419,7 @@
       <div class="timeline-header" id="exportHeader">
         <h2 id="selectedTitle">时间轴</h2>
         <span class="date-str" id="selectedSubtitle"></span>
+        <button type="button" class="mobile-view-toggle" id="mobileShowCalendar">查看日历</button>
         <label class="bg-picker">
           页面背景
           <input type="color" id="pageBgColor" value="#0f1419" />
@@ -513,8 +520,10 @@
   const calHolidayColorInput = document.getElementById("calHolidayColor");
   const calWorkdayColorInput = document.getElementById("calWorkdayColor");
   const calTodayRingColorInput = document.getElementById("calTodayRingColor");
-  const mobileJumpToTimelineBtn = document.getElementById("mobileJumpToTimeline");
+  const mobileShowCalendarBtn = document.getElementById("mobileShowCalendar");
+  const mobileBackToTimelineBtn = document.getElementById("mobileBackToTimeline");
   const timelineSection = document.getElementById("timelineSection");
+  const mobileMediaQuery = window.matchMedia("(max-width: 900px)");
 
   const ACTIVITY_PRESETS = [
     "上课", "自习", "作业/复习", "考试/测验",
@@ -944,6 +953,14 @@
     }
   }
 
+  function setMobileView(view) {
+    if (!mobileMediaQuery.matches) {
+      document.body.removeAttribute("data-mobile-view");
+      return;
+    }
+    document.body.setAttribute("data-mobile-view", view);
+  }
+
   function init() {
     const now = new Date();
     let ymd;
@@ -980,9 +997,18 @@
     calTodayRingColorInput.addEventListener("input", function () {
       applyCalendarColors({ todayRing: calTodayRingColorInput.value }, true);
     });
-    mobileJumpToTimelineBtn.addEventListener("click", function () {
+    mobileShowCalendarBtn.addEventListener("click", function () {
+      setMobileView("calendar");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+    mobileBackToTimelineBtn.addEventListener("click", function () {
+      setMobileView("timeline");
       timelineSection.scrollIntoView({ behavior: "smooth", block: "start" });
     });
+    mobileMediaQuery.addEventListener("change", function () {
+      setMobileView("timeline");
+    });
+    setMobileView("timeline");
   }
 
   init();
