@@ -36,14 +36,28 @@
       margin: 0 auto;
     }
     @media (max-width: 900px) {
-      .app { grid-template-columns: 1fr; }
+      .app {
+        display: block;
+        min-height: auto;
+      }
       aside {
-        position: relative;
+        position: static;
         max-height: none;
+        overflow: visible;
         border-right: none;
         border-bottom: 1px solid var(--border);
       }
-      main { padding: 0.75rem 0.75rem 1.25rem; }
+      main {
+        padding: 0.75rem 0.75rem 1.25rem;
+        overflow: visible;
+      }
+      .timeline-header {
+        position: static;
+        background: transparent;
+      }
+      .mobile-jump {
+        display: inline-flex;
+      }
     }
     aside {
       border-right: 1px solid var(--border);
@@ -72,6 +86,18 @@
       margin-bottom: 0.75rem;
     }
     .year-nav span { font-weight: 600; font-size: 1.1rem; }
+    .mobile-jump {
+      display: none;
+      margin: 0.25rem 0 0.9rem;
+      padding: 0.38rem 0.7rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(0,0,0,0.16);
+      color: var(--accent);
+      font-size: 0.84rem;
+      cursor: pointer;
+    }
+    .mobile-jump:hover { border-color: var(--accent); }
     .legend {
       display: flex;
       flex-wrap: wrap;
@@ -362,6 +388,7 @@
         <a href="https://www.gov.cn/zhengce/content/202511/content_7047090.htm" target="_blank" rel="noopener">国务院办公厅通知（国办发明电〔2025〕7号）</a>
       </p>
       <div class="year-nav"><span>公元 2026 年</span></div>
+      <button type="button" class="mobile-jump" id="mobileJumpToTimeline">跳到填写时间轴</button>
       <div class="legend">
         <span><i class="dot holiday"></i> 放假日</span>
         <span><i class="dot work"></i> 调休补班</span>
@@ -382,7 +409,7 @@
       </div>
       <div class="months" id="months"></div>
     </aside>
-    <main>
+    <main id="timelineSection">
       <div class="timeline-header" id="exportHeader">
         <h2 id="selectedTitle">时间轴</h2>
         <span class="date-str" id="selectedSubtitle"></span>
@@ -486,6 +513,8 @@
   const calHolidayColorInput = document.getElementById("calHolidayColor");
   const calWorkdayColorInput = document.getElementById("calWorkdayColor");
   const calTodayRingColorInput = document.getElementById("calTodayRingColor");
+  const mobileJumpToTimelineBtn = document.getElementById("mobileJumpToTimeline");
+  const timelineSection = document.getElementById("timelineSection");
 
   const ACTIVITY_PRESETS = [
     "上课", "自习", "作业/复习", "考试/测验",
@@ -950,6 +979,9 @@
     });
     calTodayRingColorInput.addEventListener("input", function () {
       applyCalendarColors({ todayRing: calTodayRingColorInput.value }, true);
+    });
+    mobileJumpToTimelineBtn.addEventListener("click", function () {
+      timelineSection.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }
 
