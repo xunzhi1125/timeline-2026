@@ -304,6 +304,15 @@
       border-radius: 6px;
       font-size: 0.82rem;
     }
+    .tool-color {
+      width: 36px;
+      height: 28px;
+      padding: 0;
+      border: 1px solid #b6bdc9;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #ffffff;
+    }
     .chip {
       border: 1px solid var(--border);
       background: rgba(0,0,0,0.18);
@@ -634,10 +643,7 @@
       colorInput.value = rgbToHex(bg);
       colorInput.title = "该小时背景色";
       colorInput.addEventListener("input", function () {
-        if (!dayData[h]) dayData[h] = {};
-        dayData[h].bg = colorInput.value;
-        body.style.background = colorInput.value;
-        saveStore(store);
+        applyColor(colorInput.value);
       });
 
       const body = document.createElement("div");
@@ -678,6 +684,14 @@
 
       const swatches = document.createElement("span");
       swatches.className = "swatches";
+      const customColorInput = document.createElement("input");
+      customColorInput.type = "color";
+      customColorInput.className = "tool-color";
+      customColorInput.title = "自选颜色";
+      customColorInput.value = rgbToHex(bg);
+      customColorInput.addEventListener("input", function () {
+        applyColor(customColorInput.value);
+      });
 
       const ta = document.createElement("textarea");
       ta.placeholder = "记录这一小时…";
@@ -693,6 +707,7 @@
         if (!dayData[h]) dayData[h] = {};
         dayData[h].bg = hex;
         colorInput.value = hex;
+        customColorInput.value = hex;
         body.style.background = hex;
         saveStore(store);
         refreshFilledMark(ymd);
@@ -731,6 +746,7 @@
       tools.appendChild(presetSel);
       tools.appendChild(fillBtn);
       tools.appendChild(schemeSel);
+      tools.appendChild(customColorInput);
       tools.appendChild(swatches);
       body.appendChild(tools);
       body.appendChild(ta);
