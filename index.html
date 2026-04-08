@@ -84,6 +84,38 @@
     .dot.holiday { background: var(--holiday); border: 1px solid #3d7a52; }
     .dot.work { background: var(--workday); border: 1px solid #8b5a3a; }
     .dot.today { outline: 2px solid var(--today-ring); }
+    .calendar-pickers {
+      margin: 0.75rem 0 1rem;
+      padding: 0.65rem 0.7rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(0,0,0,0.12);
+    }
+    .calendar-pickers-title {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin: 0 0 0.5rem;
+    }
+    .calendar-pickers-grid {
+      display: grid;
+      grid-template-columns: 1fr 42px;
+      gap: 0.45rem 0.6rem;
+      align-items: center;
+    }
+    .calendar-pickers-grid label {
+      font-size: 0.82rem;
+      color: var(--text);
+    }
+    .calendar-pickers-grid input[type="color"] {
+      width: 42px;
+      height: 30px;
+      padding: 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      background: transparent;
+      justify-self: end;
+    }
     .months {
       display: flex;
       flex-direction: column;
@@ -325,6 +357,17 @@
         <span><i class="dot work"></i> 调休补班</span>
         <span><i class="dot today"></i> 今天</span>
       </div>
+      <div class="calendar-pickers">
+        <p class="calendar-pickers-title">日历颜色</p>
+        <div class="calendar-pickers-grid">
+          <label for="calHolidayColor">放假日</label>
+          <input type="color" id="calHolidayColor" value="#2d5a3d" />
+          <label for="calWorkdayColor">补班日</label>
+          <input type="color" id="calWorkdayColor" value="#5c3d2d" />
+          <label for="calTodayRingColor">今天描边</label>
+          <input type="color" id="calTodayRingColor" value="#4da3ff" />
+        </div>
+      </div>
       <div class="months" id="months"></div>
     </aside>
     <main>
@@ -427,6 +470,9 @@
   const exportBtn = document.getElementById("exportPng");
   const exportArea = document.getElementById("exportArea");
   const pageBgColorInput = document.getElementById("pageBgColor");
+  const calHolidayColorInput = document.getElementById("calHolidayColor");
+  const calWorkdayColorInput = document.getElementById("calWorkdayColor");
+  const calTodayRingColorInput = document.getElementById("calTodayRingColor");
 
   const ACTIVITY_PRESETS = [
     "上课", "自习", "作业/复习", "考试/测验",
@@ -766,6 +812,28 @@
     }
   }
 
+  function applyCalendarColors(colors, shouldSave) {
+    if (colors.holiday) {
+      document.documentElement.style.setProperty("--holiday", colors.holiday);
+      calHolidayColorInput.value = rgbToHex(colors.holiday);
+    }
+    if (colors.workday) {
+      document.documentElement.style.setProperty("--workday", colors.workday);
+      calWorkdayColorInput.value = rgbToHex(colors.workday);
+    }
+    if (colors.todayRing) {
+      document.documentElement.style.setProperty("--today-ring", colors.todayRing);
+      calTodayRingColorInput.value = rgbToHex(colors.todayRing);
+    }
+    if (shouldSave) {
+      const ui = loadUiStore();
+      ui.calHoliday = calHolidayColorInput.value;
+      ui.calWorkday = calWorkdayColorInput.value;
+      ui.calTodayRing = calTodayRingColorInput.value;
+      saveUiStore(ui);
+    }
+  }
+
   function init() {
     const now = new Date();
     let ymd;
@@ -778,8 +846,25 @@
     selectDate(ymd);
     const ui = loadUiStore();
     if (ui.pageBg) applyPageBg(ui.pageBg, false);
+    applyCalendarColors(
+      {
+        holiday: ui.calHoliday || getComputedStyle(document.documentElement).getPropertyValue("--holiday").trim() || "#2d5a3d",
+        workday: ui.calWorkday || getComputedStyle(document.documentElement).getPropertyValue("--workday").trim() || "#5c3d2d",
+        todayRing: ui.calTodayRing || getComputedStyle(document.documentElement).getPropertyValue("--today-ring").trim() || "#4da3ff",
+      },
+      false
+    );
     pageBgColorInput.addEventListener("input", function () {
       applyPageBg(pageBgColorInput.value, true);
+    });
+    calHolidayColorInput.addEventListener("input", function () {
+      applyCalendarColors({ holiday: calHolidayColorInput.value }, true);
+    });
+    calWorkdayColorInput.addEventListener("input", function () {
+      applyCalendarColors({ workday: calWorkdayColorInput.value }, true);
+    });
+    calTodayRingColorInput.addEventListener("input", function () {
+      applyCalendarColors({ todayRing: calTodayRingColorInput.value }, true);
     });
   }
 
