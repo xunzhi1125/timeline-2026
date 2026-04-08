@@ -8,6 +8,7 @@
     :root {
       --bg: #0f1419;
       --surface: #1a2332;
+      --calendar-bg: #1a2332;
       --border: #2d3a4d;
       --text: #e8edf4;
       --muted: #8b9aaf;
@@ -47,7 +48,7 @@
     aside {
       border-right: 1px solid var(--border);
       padding: 1rem 1rem 2rem;
-      background: var(--surface);
+      background: var(--calendar-bg);
       overflow-y: auto;
       max-height: 100vh;
       position: sticky;
@@ -360,6 +361,8 @@
       <div class="calendar-pickers">
         <p class="calendar-pickers-title">日历颜色</p>
         <div class="calendar-pickers-grid">
+          <label for="calBgColor">日历背景</label>
+          <input type="color" id="calBgColor" value="#1a2332" />
           <label for="calHolidayColor">放假日</label>
           <input type="color" id="calHolidayColor" value="#2d5a3d" />
           <label for="calWorkdayColor">补班日</label>
@@ -470,6 +473,7 @@
   const exportBtn = document.getElementById("exportPng");
   const exportArea = document.getElementById("exportArea");
   const pageBgColorInput = document.getElementById("pageBgColor");
+  const calBgColorInput = document.getElementById("calBgColor");
   const calHolidayColorInput = document.getElementById("calHolidayColor");
   const calWorkdayColorInput = document.getElementById("calWorkdayColor");
   const calTodayRingColorInput = document.getElementById("calTodayRingColor");
@@ -784,11 +788,66 @@
     exportBtn.disabled = true;
     const oldText = exportBtn.textContent;
     exportBtn.textContent = "导出中…";
+    let exportRoot = null;
     try {
-      const canvas = await window.html2canvas(exportArea, {
-        backgroundColor: getComputedStyle(document.body).backgroundColor,
-        scale: Math.min(2, window.devicePixelRatio || 1),
+      const a4Width = 1240;
+      const a4Height = 1754;
+
+      exportRoot = document.createElement("div");
+      exportRoot.style.position = "fixed";
+      exportRoot.style.left = "-99999px";
+      exportRoot.style.top = "0";
+      exportRoot.style.width = a4Width + "px";
+      exportRoot.style.height = a4Height + "px";
+      exportRoot.style.padding = "36px";
+      exportRoot.style.background = getComputedStyle(document.body).backgroundColor;
+      exportRoot.style.color = getComputedStyle(document.body).color;
+      exportRoot.style.overflow = "hidden";
+      exportRoot.style.zIndex = "-1";
+
+      const title = document.createElement("div");
+      title.style.fontSize = "34px";
+      title.style.fontWeight = "600";
+      title.style.marginBottom = "14px";
+      title.textContent = selectedTitle.textContent + " · " + selectedSubtitle.textContent;
+      exportRoot.appendChild(title);
+
+      const clone = timelineEl.cloneNode(true);
+      clone.style.border = "1px solid " + getComputedStyle(document.documentElement).getPropertyValue("--border").trim();
+      clone.style.borderRadius = "10px";
+      clone.style.overflow = "hidden";
+      clone.style.background = getComputedStyle(document.documentElement).getPropertyValue("--surface").trim();
+
+      clone.querySelectorAll(".hour-tools").forEach(function (el) {
+        el.remove();
       });
+
+      clone.querySelectorAll("textarea").forEach(function (ta) {
+        const txt = document.createElement("div");
+        txt.style.whiteSpace = "pre-wrap";
+        txt.style.wordBreak = "break-word";
+        txt.style.minHeight = "44px";
+        txt.style.padding = "0.45rem 0.5rem";
+        txt.style.borderRadius = "6px";
+        txt.style.background = "rgba(0,0,0,0.15)";
+        txt.style.color = getComputedStyle(ta).color || "#e8edf4";
+        txt.textContent = ta.value || "";
+        ta.replaceWith(txt);
+      });
+
+      exportRoot.appendChild(clone);
+      document.body.appendChild(exportRoot);
+
+      const canvas = await window.html2canvas(exportRoot, {
+        backgroundColor: getComputedStyle(document.body).backgroundColor,
+        width: a4Width,
+        height: a4Height,
+        scale: 2,
+      });
+
+      exportRoot.remove();
+      exportRoot = null;
+
       const url = canvas.toDataURL("image/png");
       const a = document.createElement("a");
       a.href = url;
@@ -797,6 +856,7 @@
       a.click();
       a.remove();
     } finally {
+      if (exportRoot) exportRoot.remove();
       exportBtn.disabled = false;
       exportBtn.textContent = oldText;
     }
@@ -813,6 +873,10 @@
   }
 
   function applyCalendarColors(colors, shouldSave) {
+    if (colors.calendarBg) {
+      document.documentElement.style.setProperty("--calendar-bg", colors.calendarBg);
+      calBgColorInput.value = rgbToHex(colors.calendarBg);
+    }
     if (colors.holiday) {
       document.documentElement.style.setProperty("--holiday", colors.holiday);
       calHolidayColorInput.value = rgbToHex(colors.holiday);
@@ -827,6 +891,7 @@
     }
     if (shouldSave) {
       const ui = loadUiStore();
+      ui.calBg = calBgColorInput.value;
       ui.calHoliday = calHolidayColorInput.value;
       ui.calWorkday = calWorkdayColorInput.value;
       ui.calTodayRing = calTodayRingColorInput.value;
@@ -848,6 +913,7 @@
     if (ui.pageBg) applyPageBg(ui.pageBg, false);
     applyCalendarColors(
       {
+        calendarBg: ui.calBg || getComputedStyle(document.documentElement).getPropertyValue("--calendar-bg").trim() || "#1a2332",
         holiday: ui.calHoliday || getComputedStyle(document.documentElement).getPropertyValue("--holiday").trim() || "#2d5a3d",
         workday: ui.calWorkday || getComputedStyle(document.documentElement).getPropertyValue("--workday").trim() || "#5c3d2d",
         todayRing: ui.calTodayRing || getComputedStyle(document.documentElement).getPropertyValue("--today-ring").trim() || "#4da3ff",
@@ -856,6 +922,9 @@
     );
     pageBgColorInput.addEventListener("input", function () {
       applyPageBg(pageBgColorInput.value, true);
+    });
+    calBgColorInput.addEventListener("input", function () {
+      applyCalendarColors({ calendarBg: calBgColorInput.value }, true);
     });
     calHolidayColorInput.addEventListener("input", function () {
       applyCalendarColors({ holiday: calHolidayColorInput.value }, true);
