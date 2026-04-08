@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>2026 每日时间轴 · 法定节假日</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4d;
+      --text: #e8edf4;
+      --muted: #8b9aaf;
+      --accent: #4da3ff;
+      --holiday: #2d5a3d;
+      --holiday-text: #a8e6b8;
+      --workday: #5c3d2d;
+      --workday-text: #ffc9a3;
+      --today-ring: #4da3ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.45;
+    }
+    .app {
+      display: grid;
+      grid-template-columns: minmax(280px, 380px) 1fr;
+      min-height: 100vh;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      aside {
+        position: relative;
+        max-height: none;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+      main { padding: 0.75rem 0.75rem 1.25rem; }
+    }
+    aside {
+      border-right: 1px solid var(--border);
+      padding: 1rem 1rem 2rem;
+      background: var(--surface);
+      overflow-y: auto;
+      max-height: 100vh;
+      position: sticky;
+      top: 0;
+    }
+    h1 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin: 0 0 0.5rem;
+    }
+    .source {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+    .source a { color: var(--accent); }
+    .year-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+    .year-nav span { font-weight: 600; font-size: 1.1rem; }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+    .legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .dot { width: 10px; height: 10px; border-radius: 2px; }
+    .dot.holiday { background: var(--holiday); border: 1px solid #3d7a52; }
+    .dot.work { background: var(--workday); border: 1px solid #8b5a3a; }
+    .dot.today { outline: 2px solid var(--today-ring); }
+    .months {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .month-block h2 {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin: 0 0 0.35rem;
+      font-weight: 500;
+    }
+    .weekday-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+      font-size: 0.65rem;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    .days-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+    .day-cell {
+      aspect-ratio: 1;
+      max-height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .day-cell:hover { border-color: var(--border); }
+    .day-cell.empty { visibility: hidden; pointer-events: none; }
+    .day-cell.holiday { background: var(--holiday); color: var(--holiday-text); }
+    .day-cell.work { background: var(--workday); color: var(--workday-text); }
+    .day-cell.selected {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+      z-index: 1;
+    }
+    .day-cell.today:not(.selected) {
+      box-shadow: 0 0 0 2px var(--today-ring);
+    }
+    .day-cell.filled {
+      position: relative;
+    }
+    .day-cell.filled::after {
+      content: "";
+      position: absolute;
+      right: 6px;
+      bottom: 6px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.75);
+      opacity: 0.85;
+    }
+    main {
+      padding: 1rem 1.25rem 2rem;
+      overflow-y: auto;
+    }
+    .timeline-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.5rem 1rem;
+      margin-bottom: 1rem;
+      position: sticky;
+      top: 0;
+      background: linear-gradient(180deg, var(--bg) 70%, transparent);
+      padding-bottom: 0.5rem;
+      z-index: 2;
+    }
+    .timeline-header h2 { margin: 0; font-size: 1.25rem; }
+    .timeline-header .date-str { color: var(--muted); font-size: 0.95rem; }
+    .jump-now {
+      margin-left: auto;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.85rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--accent);
+      cursor: pointer;
+    }
+    .jump-now:hover { border-color: var(--accent); }
+    .btn {
+      padding: 0.35rem 0.75rem;
+      font-size: 0.85rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn.primary { color: var(--accent); }
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--surface);
+    }
+    .hour-row {
+      display: grid;
+      grid-template-columns: 72px 44px 1fr;
+      align-items: stretch;
+      min-height: 56px;
+      border-bottom: 1px solid var(--border);
+    }
+    .hour-row:last-child { border-bottom: none; }
+    .hour-label {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.85rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+      background: rgba(0,0,0,0.2);
+      display: flex;
+      align-items: flex-start;
+      padding-top: 0.65rem;
+    }
+    .hour-color {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 0.5rem;
+      border-left: 1px solid var(--border);
+    }
+    .hour-color input[type="color"] {
+      width: 36px;
+      height: 32px;
+      padding: 0;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      background: transparent;
+    }
+    .hour-body {
+      border-left: 1px solid var(--border);
+      padding: 0.4rem 0.6rem;
+      display: flex;
+      flex-direction: column;
+      min-height: 56px;
+      gap: 0.35rem;
+    }
+    .hour-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem 0.45rem;
+      align-items: center;
+    }
+    .hour-tools select {
+      max-width: 180px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,0.18);
+      color: var(--text);
+      padding: 0.25rem 0.4rem;
+      border-radius: 6px;
+      font-size: 0.82rem;
+    }
+    .chip {
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,0.18);
+      color: var(--text);
+      padding: 0.2rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    .chip:hover { border-color: var(--accent); }
+    .swatches { display: inline-flex; gap: 6px; align-items: center; }
+    .swatch {
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.15);
+      cursor: pointer;
+    }
+    .swatch:hover { outline: 2px solid rgba(77,163,255,0.55); }
+    .hour-body textarea {
+      flex: 1;
+      width: 100%;
+      min-height: 44px;
+      resize: vertical;
+      border: none;
+      border-radius: 6px;
+      padding: 0.45rem 0.5rem;
+      font-size: 0.9rem;
+      font-family: inherit;
+      color: var(--text);
+      background: rgba(0,0,0,0.15);
+    }
+    .hour-body textarea:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 0;
+    }
+    .hour-row.current-hour .hour-label { color: var(--accent); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <h1>2026 年日历</h1>
+      <p class="source">
+        节假日依据
+        <a href="https://www.gov.cn/zhengce/content/202511/content_7047090.htm" target="_blank" rel="noopener">国务院办公厅通知（国办发明电〔2025〕7号）</a>
+      </p>
+      <div class="year-nav"><span>公元 2026 年</span></div>
+      <div class="legend">
+        <span><i class="dot holiday"></i> 放假日</span>
+        <span><i class="dot work"></i> 调休补班</span>
+        <span><i class="dot today"></i> 今天</span>
+      </div>
+      <div class="months" id="months"></div>
+    </aside>
+    <main>
+      <div class="timeline-header" id="exportHeader">
+        <h2 id="selectedTitle">时间轴</h2>
+        <span class="date-str" id="selectedSubtitle"></span>
+        <button type="button" class="btn primary" id="exportPng">导出 PNG</button>
+        <button type="button" class="jump-now" id="jumpNow" hidden>跳到当前时刻</button>
+      </div>
+      <div id="exportArea">
+        <div class="timeline" id="timeline"></div>
+      </div>
+    </main>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script>
+(function () {
+  const STORAGE_KEY = "timeline2026_v1";
+
+  /** 国务院办公厅 2026 年节假日安排 — 放假区间与调休上班日 */
+  const HOLIDAY_RANGES = [
+    { name: "元旦", start: "2026-01-01", end: "2026-01-03" },
+    { name: "春节", start: "2026-02-15", end: "2026-02-23" },
+    { name: "清明节", start: "2026-04-04", end: "2026-04-06" },
+    { name: "劳动节", start: "2026-05-01", end: "2026-05-05" },
+    { name: "端午节", start: "2026-06-19", end: "2026-06-21" },
+    { name: "中秋节", start: "2026-09-25", end: "2026-09-27" },
+    { name: "国庆节", start: "2026-10-01", end: "2026-10-07" },
+  ];
+  const WORK_DAYS = new Set([
+    "2026-01-04",
+    "2026-02-14",
+    "2026-02-28",
+    "2026-05-09",
+    "2026-09-20",
+    "2026-10-10",
+  ]);
+
+  function parseYMD(s) {
+    const [y, m, d] = s.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+  function formatYMD(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  function addDays(date, n) {
+    const x = new Date(date);
+    x.setDate(x.getDate() + n);
+    return x;
+  }
+
+  const holidayDates = new Set();
+  HOLIDAY_RANGES.forEach(function (r) {
+    let cur = parseYMD(r.start);
+    const end = parseYMD(r.end);
+    while (cur <= end) {
+      holidayDates.add(formatYMD(cur));
+      cur = addDays(cur, 1);
+    }
+  });
+
+  function loadStore() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+  function saveStore(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  let store = loadStore();
+  let selectedYMD = "";
+  const monthsEl = document.getElementById("months");
+  const timelineEl = document.getElementById("timeline");
+  const selectedTitle = document.getElementById("selectedTitle");
+  const selectedSubtitle = document.getElementById("selectedSubtitle");
+  const jumpNowBtn = document.getElementById("jumpNow");
+  const exportBtn = document.getElementById("exportPng");
+  const exportArea = document.getElementById("exportArea");
+
+  const ACTIVITY_PRESETS = [
+    "上课", "自习", "作业/复习", "考试/测验",
+    "吃饭", "通勤", "运动", "洗澡",
+    "睡觉", "午休", "休息/放空",
+    "社交", "娱乐", "阅读", "学习",
+    "家务", "打扫", "会议", "工作", "旅行"
+  ];
+  const COLOR_SCHEMES = [
+    { id: "蓝", name: "蓝色系", colors: ["#1e3a8a", "#2563eb", "#38bdf8", "#0ea5e9"] },
+    { id: "绿", name: "绿色系", colors: ["#14532d", "#16a34a", "#22c55e", "#86efac"] },
+    { id: "黄", name: "黄色系", colors: ["#713f12", "#f59e0b", "#fbbf24", "#fde68a"] },
+    { id: "橙", name: "橙色系", colors: ["#7c2d12", "#ea580c", "#fb923c", "#fed7aa"] },
+    { id: "红", name: "红色系", colors: ["#7f1d1d", "#ef4444", "#f87171", "#fecaca"] },
+    { id: "紫", name: "紫色系", colors: ["#4c1d95", "#7c3aed", "#a78bfa", "#ddd6fe"] },
+    { id: "灰", name: "灰色系", colors: ["#111827", "#334155", "#475569", "#94a3b8"] },
+  ];
+
+  function getDayData(ymd) {
+    if (!store[ymd]) store[ymd] = {};
+    return store[ymd];
+  }
+
+  function defaultBgForHour(h) {
+    const base = 26 + (h % 5) * 4;
+    return `rgb(${base}, ${base + 8}, ${base + 14})`;
+  }
+
+  function isDayFilled(ymd) {
+    const day = store && store[ymd];
+    if (!day) return false;
+    for (let h = 0; h < 24; h++) {
+      const slot = day[h];
+      if (!slot) continue;
+      const hasText = typeof slot.text === "string" && slot.text.trim().length > 0;
+      const hasColor = typeof slot.bg === "string" && slot.bg.trim().length > 0;
+      if (hasText || hasColor) return true;
+    }
+    return false;
+  }
+
+  function renderCalendar() {
+    monthsEl.innerHTML = "";
+    const now = new Date();
+    const todayYmd =
+      now.getFullYear() === 2026 ? formatYMD(now) : null;
+    const weekdayNames = ["日", "一", "二", "三", "四", "五", "六"];
+    for (let month = 0; month < 12; month++) {
+      const block = document.createElement("div");
+      block.className = "month-block";
+      const h2 = document.createElement("h2");
+      h2.textContent = `${month + 1} 月`;
+      block.appendChild(h2);
+      const wr = document.createElement("div");
+      wr.className = "weekday-row";
+      weekdayNames.forEach(function (w) {
+        const c = document.createElement("div");
+        c.textContent = w;
+        wr.appendChild(c);
+      });
+      block.appendChild(wr);
+      const grid = document.createElement("div");
+      grid.className = "days-grid";
+      const first = new Date(2026, month, 1);
+      const startPad = first.getDay();
+      const lastDay = new Date(2026, month + 1, 0).getDate();
+      for (let i = 0; i < startPad; i++) {
+        const empty = document.createElement("div");
+        empty.className = "day-cell empty";
+        grid.appendChild(empty);
+      }
+      for (let d = 1; d <= lastDay; d++) {
+        const cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = "day-cell";
+        const date = new Date(2026, month, d);
+        const ymd = formatYMD(date);
+        cell.textContent = String(d);
+        if (holidayDates.has(ymd)) cell.classList.add("holiday");
+        else if (WORK_DAYS.has(ymd)) cell.classList.add("work");
+        if (todayYmd && ymd === todayYmd) cell.classList.add("today");
+        if (isDayFilled(ymd)) cell.classList.add("filled");
+        cell.dataset.ymd = ymd;
+        cell.addEventListener("click", function () {
+          selectDate(ymd);
+        });
+        grid.appendChild(cell);
+      }
+      block.appendChild(grid);
+      monthsEl.appendChild(block);
+    }
+    updateCalendarSelection();
+  }
+
+  function updateCalendarSelection() {
+    document.querySelectorAll(".day-cell[data-ymd]").forEach(function (el) {
+      el.classList.toggle("selected", el.dataset.ymd === selectedYMD);
+    });
+  }
+
+  function weekdayZh(ymd) {
+    const w = parseYMD(ymd).getDay();
+    return ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"][w];
+  }
+
+  function renderTimeline() {
+    timelineEl.innerHTML = "";
+    const ymd = selectedYMD;
+    const dayData = getDayData(ymd);
+    const now = new Date();
+    const isToday =
+      now.getFullYear() === 2026 &&
+      formatYMD(now) === ymd;
+
+    const parts = ymd.split("-");
+    selectedTitle.textContent =
+      parts[0] + " 年 " + parts[1] + " 月 " + parts[2] + " 日";
+    selectedSubtitle.textContent = weekdayZh(ymd);
+
+    jumpNowBtn.hidden = !isToday;
+    jumpNowBtn.onclick = function () {
+      const h = now.getHours();
+      const row = timelineEl.querySelector('.hour-row[data-hour="' + h + '"]');
+      if (row) row.scrollIntoView({ block: "center", behavior: "smooth" });
+    };
+
+    exportBtn.onclick = function () {
+      exportDayAsPng(ymd);
+    };
+
+    for (let h = 0; h < 24; h++) {
+      const row = document.createElement("div");
+      row.className = "hour-row";
+      row.dataset.hour = String(h);
+      if (isToday && now.getHours() === h) row.classList.add("current-hour");
+
+      const slot = dayData[h] || {};
+      const bg = slot.bg || defaultBgForHour(h);
+      const text = slot.text || "";
+
+      const label = document.createElement("div");
+      label.className = "hour-label";
+      label.textContent = String(h).padStart(2, "0") + ":00";
+
+      const colorWrap = document.createElement("div");
+      colorWrap.className = "hour-color";
+      const colorInput = document.createElement("input");
+      colorInput.type = "color";
+      colorInput.value = rgbToHex(bg);
+      colorInput.title = "该小时背景色";
+      colorInput.addEventListener("input", function () {
+        if (!dayData[h]) dayData[h] = {};
+        dayData[h].bg = colorInput.value;
+        body.style.background = colorInput.value;
+        saveStore(store);
+      });
+
+      const body = document.createElement("div");
+      body.className = "hour-body";
+      body.style.background = bg;
+
+      const tools = document.createElement("div");
+      tools.className = "hour-tools";
+
+      const presetSel = document.createElement("select");
+      const opt0 = document.createElement("option");
+      opt0.value = "";
+      opt0.textContent = "活动预设…";
+      presetSel.appendChild(opt0);
+      ACTIVITY_PRESETS.forEach(function (name) {
+        const o = document.createElement("option");
+        o.value = name;
+        o.textContent = name;
+        presetSel.appendChild(o);
+      });
+
+      const fillBtn = document.createElement("button");
+      fillBtn.type = "button";
+      fillBtn.className = "chip";
+      fillBtn.textContent = "填入";
+
+      const schemeSel = document.createElement("select");
+      const s0 = document.createElement("option");
+      s0.value = "";
+      s0.textContent = "色系…";
+      schemeSel.appendChild(s0);
+      COLOR_SCHEMES.forEach(function (s) {
+        const o = document.createElement("option");
+        o.value = s.id;
+        o.textContent = s.name;
+        schemeSel.appendChild(o);
+      });
+
+      const swatches = document.createElement("span");
+      swatches.className = "swatches";
+
+      const ta = document.createElement("textarea");
+      ta.placeholder = "记录这一小时…";
+      ta.value = text;
+      ta.addEventListener("input", function () {
+        if (!dayData[h]) dayData[h] = {};
+        dayData[h].text = ta.value;
+        saveStore(store);
+        refreshFilledMark(ymd);
+      });
+
+      function applyColor(hex) {
+        if (!dayData[h]) dayData[h] = {};
+        dayData[h].bg = hex;
+        colorInput.value = hex;
+        body.style.background = hex;
+        saveStore(store);
+        refreshFilledMark(ymd);
+      }
+
+      function setSwatchesForScheme(id) {
+        swatches.innerHTML = "";
+        const scheme = COLOR_SCHEMES.find(function (x) { return x.id === id; });
+        if (!scheme) return;
+        scheme.colors.forEach(function (c) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "swatch";
+          b.style.background = c;
+          b.title = c;
+          b.addEventListener("click", function () { applyColor(c); });
+          swatches.appendChild(b);
+        });
+      }
+
+      schemeSel.addEventListener("change", function () {
+        setSwatchesForScheme(schemeSel.value);
+      });
+      setSwatchesForScheme(COLOR_SCHEMES[0].id);
+      schemeSel.value = COLOR_SCHEMES[0].id;
+
+      fillBtn.addEventListener("click", function () {
+        const v = presetSel.value;
+        if (!v) return;
+        if (!ta.value || ta.value.trim().length === 0) ta.value = v;
+        else ta.value = ta.value.replace(/\s+$/g, "") + " / " + v;
+        ta.dispatchEvent(new Event("input"));
+      });
+
+      colorWrap.appendChild(colorInput);
+      tools.appendChild(presetSel);
+      tools.appendChild(fillBtn);
+      tools.appendChild(schemeSel);
+      tools.appendChild(swatches);
+      body.appendChild(tools);
+      body.appendChild(ta);
+      row.appendChild(label);
+      row.appendChild(colorWrap);
+      row.appendChild(body);
+      timelineEl.appendChild(row);
+    }
+
+    if (isToday) {
+      requestAnimationFrame(function () {
+        const ch = now.getHours();
+        const row = timelineEl.querySelector('.hour-row[data-hour="' + ch + '"]');
+        if (row) row.scrollIntoView({ block: "center", behavior: "smooth" });
+      });
+    }
+  }
+
+  function rgbToHex(rgb) {
+    if (typeof rgb === "string" && rgb.startsWith("#")) {
+      if (rgb.length === 7) return rgb;
+    }
+    const m = String(rgb).match(/\d+/g);
+    if (!m || m.length < 3) return "#1a2332";
+    const r = Math.min(255, parseInt(m[0], 10));
+    const g = Math.min(255, parseInt(m[1], 10));
+    const b = Math.min(255, parseInt(m[2], 10));
+    return (
+      "#" +
+      [r, g, b]
+        .map(function (x) {
+          return x.toString(16).padStart(2, "0");
+        })
+        .join("")
+    );
+  }
+
+  function selectDate(ymd) {
+    selectedYMD = ymd;
+    updateCalendarSelection();
+    renderTimeline();
+  }
+
+  function refreshFilledMark(ymd) {
+    const el = document.querySelector('.day-cell[data-ymd="' + ymd + '"]');
+    if (!el) return;
+    el.classList.toggle("filled", isDayFilled(ymd));
+  }
+
+  async function exportDayAsPng(ymd) {
+    if (!window.html2canvas) {
+      alert("导出失败：html2canvas 未加载。请检查网络或稍后重试。");
+      return;
+    }
+    exportBtn.disabled = true;
+    const oldText = exportBtn.textContent;
+    exportBtn.textContent = "导出中…";
+    try {
+      const canvas = await window.html2canvas(exportArea, {
+        backgroundColor: getComputedStyle(document.body).backgroundColor,
+        scale: Math.min(2, window.devicePixelRatio || 1),
+      });
+      const url = canvas.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "时间轴_" + ymd + ".png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } finally {
+      exportBtn.disabled = false;
+      exportBtn.textContent = oldText;
+    }
+  }
+
+  function init() {
+    const now = new Date();
+    let ymd;
+    if (now.getFullYear() === 2026) {
+      ymd = formatYMD(now);
+    } else {
+      ymd = "2026-01-01";
+    }
+    renderCalendar();
+    selectDate(ymd);
+  }
+
+  init();
+})();
+  </script>
+</body>
+</html>
