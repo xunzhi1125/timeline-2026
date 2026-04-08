@@ -188,6 +188,23 @@
     }
     .btn:hover { border-color: var(--accent); }
     .btn.primary { color: var(--accent); }
+    .bg-picker {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    .bg-picker input[type="color"] {
+      width: 32px;
+      height: 26px;
+      padding: 0;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      background: transparent;
+    }
     .timeline {
       display: flex;
       flex-direction: column;
@@ -247,9 +264,9 @@
     }
     .hour-tools select {
       max-width: 180px;
-      border: 1px solid var(--border);
-      background: rgba(0,0,0,0.18);
-      color: var(--text);
+      border: 1px solid #b6bdc9;
+      background: #ffffff;
+      color: #111111;
       padding: 0.25rem 0.4rem;
       border-radius: 6px;
       font-size: 0.82rem;
@@ -314,6 +331,10 @@
       <div class="timeline-header" id="exportHeader">
         <h2 id="selectedTitle">时间轴</h2>
         <span class="date-str" id="selectedSubtitle"></span>
+        <label class="bg-picker">
+          页面背景
+          <input type="color" id="pageBgColor" value="#0f1419" />
+        </label>
         <button type="button" class="btn primary" id="exportPng">导出 PNG</button>
         <button type="button" class="jump-now" id="jumpNow" hidden>跳到当前时刻</button>
       </div>
@@ -326,6 +347,7 @@
   <script>
 (function () {
   const STORAGE_KEY = "timeline2026_v1";
+  const UI_STORAGE_KEY = "timeline2026_ui_v1";
 
   /** 国务院办公厅 2026 年节假日安排 — 放假区间与调休上班日 */
   const HOLIDAY_RANGES = [
@@ -383,6 +405,17 @@
   function saveStore(data) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }
+  function loadUiStore() {
+    try {
+      const raw = localStorage.getItem(UI_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+  function saveUiStore(data) {
+    localStorage.setItem(UI_STORAGE_KEY, JSON.stringify(data));
+  }
 
   let store = loadStore();
   let selectedYMD = "";
@@ -393,6 +426,7 @@
   const jumpNowBtn = document.getElementById("jumpNow");
   const exportBtn = document.getElementById("exportPng");
   const exportArea = document.getElementById("exportArea");
+  const pageBgColorInput = document.getElementById("pageBgColor");
 
   const ACTIVITY_PRESETS = [
     "上课", "自习", "作业/复习", "考试/测验",
@@ -470,9 +504,15 @@
         cell.className = "day-cell";
         const date = new Date(2026, month, d);
         const ymd = formatYMD(date);
+        const weekDay = date.getDay();
         cell.textContent = String(d);
-        if (holidayDates.has(ymd)) cell.classList.add("holiday");
-        else if (WORK_DAYS.has(ymd)) cell.classList.add("work");
+        if ((weekDay === 0 || weekDay === 6) && !WORK_DAYS.has(ymd)) {
+          cell.classList.add("holiday");
+        } else if (holidayDates.has(ymd)) {
+          cell.classList.add("holiday");
+        } else if (WORK_DAYS.has(ymd)) {
+          cell.classList.add("work");
+        }
         if (todayYmd && ymd === todayYmd) cell.classList.add("today");
         if (isDayFilled(ymd)) cell.classList.add("filled");
         cell.dataset.ymd = ymd;
@@ -716,6 +756,16 @@
     }
   }
 
+  function applyPageBg(hex, shouldSave) {
+    document.documentElement.style.setProperty("--bg", hex);
+    pageBgColorInput.value = rgbToHex(hex);
+    if (shouldSave) {
+      const ui = loadUiStore();
+      ui.pageBg = pageBgColorInput.value;
+      saveUiStore(ui);
+    }
+  }
+
   function init() {
     const now = new Date();
     let ymd;
@@ -726,6 +776,11 @@
     }
     renderCalendar();
     selectDate(ymd);
+    const ui = loadUiStore();
+    if (ui.pageBg) applyPageBg(ui.pageBg, false);
+    pageBgColorInput.addEventListener("input", function () {
+      applyPageBg(pageBgColorInput.value, true);
+    });
   }
 
   init();
